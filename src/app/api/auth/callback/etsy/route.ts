@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getIronSession } from 'iron-session';
+import { sessionOptions, AppSession } from '@/lib/session';
 
 export async function GET(request: NextRequest) {
     const cookieStore = await cookies();
@@ -92,19 +94,26 @@ export async function GET(request: NextRequest) {
             return redirect(`${appBaseUrl}${mainRedirectPath}?status=error&message=${errorMessage}`);
         }
 
-        // --- BAŞARILI TOKEN ALINDI ---
-        const accessToken = tokenData.access_token;
-        const refreshToken = tokenData.refresh_token;
-        const expiresIn = tokenData.expires_in;
-        const etsyUserId = tokenData.access_token.split('.')[0];
+        // --- iron-session ile session başlat ---
+        const nextRes = NextResponse.redirect(`${appBaseUrl}${mainRedirectPath}?status=success&message=Etsy_Connected_And_Session_Created`);
+        const session = await getIronSession<AppSession>(request, nextRes, sessionOptions);
+        session.isLoggedIn = true;
+        session.etsyAccessToken = tokenData.access_token;
+        session.etsyRefreshToken = tokenData.refresh_token;
+        session.etsyTokenExpiresAt = Date.now() + (tokenData.expires_in * 1000);
+        session.etsyUserId = tokenData.access_token.split('.')[0];
+        await session.save();
 
-        console.log("[ETSY CALLBACK] Etsy tokenları başarıyla alındı. User (approx):", etsyUserId);
-        console.log("[ETSY CALLBACK] Access Token Geçerlilik:", expiresIn, "sn");
-        
-        // TODO: Token'ları güvenli bir şekilde sakla (session cookie, veritabanı vb.)
+        // --- DEBUG: Session'ı hemen tekrar oku ---
+        const reReadSession = await getIronSession<AppSession>(request, nextRes, sessionOptions);
+        if (reReadSession.isLoggedIn && reReadSession.etsyAccessToken) {
+            console.log('[ETSY CALLBACK] Session BAŞARIYLA yazıldı ve okundu!');
+        } else {
+            console.error('[ETSY CALLBACK] HATA: Session YAZILAMADI veya OKUNAMADI!');
+            return redirect(`${appBaseUrl}/auth/login?status=error&message=SESSION_SAVE_FAILED`);
+        }
 
-        // Başarılı yönlendirme
-        return redirect(`${appBaseUrl}${mainRedirectPath}?status=success&message=Etsy_Connected`);
+        return nextRes;
 
     } catch (error: any) {
         if (error.digest && typeof error.digest === 'string' && error.digest.startsWith('NEXT_REDIRECT')) {
