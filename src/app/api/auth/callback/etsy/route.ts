@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
             return redirect(`${appBaseUrl}${mainRedirectPath}?status=error&message=${errorMessage}`);
         }
 
-        // --- iron-session ile session başlat ---
+        // --- iron-session ile session başlat (App Router uyumlu) ---
         const nextRes = NextResponse.redirect(`${appBaseUrl}${mainRedirectPath}?status=success&message=Etsy_Connected_And_Session_Created`);
         const session = await getIronSession<AppSession>(request, nextRes, sessionOptions);
         session.isLoggedIn = true;
@@ -103,16 +103,6 @@ export async function GET(request: NextRequest) {
         session.etsyTokenExpiresAt = Date.now() + (tokenData.expires_in * 1000);
         session.etsyUserId = tokenData.access_token.split('.')[0];
         await session.save();
-
-        // --- DEBUG: Session'ı hemen tekrar oku ---
-        const reReadSession = await getIronSession<AppSession>(request, nextRes, sessionOptions);
-        if (reReadSession.isLoggedIn && reReadSession.etsyAccessToken) {
-            console.log('[ETSY CALLBACK] Session BAŞARIYLA yazıldı ve okundu!');
-        } else {
-            console.error('[ETSY CALLBACK] HATA: Session YAZILAMADI veya OKUNAMADI!');
-            return redirect(`${appBaseUrl}/auth/login?status=error&message=SESSION_SAVE_FAILED`);
-        }
-
         return nextRes;
 
     } catch (error: any) {
