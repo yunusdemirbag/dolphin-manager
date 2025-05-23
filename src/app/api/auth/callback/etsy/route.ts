@@ -142,9 +142,16 @@ export async function GET(request: NextRequest) {
         const successPath = `${appBaseUrl}/dashboard`; // VEYA `${appBaseUrl}/settings/stores`
         return redirect(`${successPath}?status=success&message=Etsy_Connected`);
 
-    } catch (error) {
-        console.error('[ETSY CALLBACK] Etsy token alımı sırasında kritik hata:', error);
+    } catch (error: any) { // Hata tipini 'any' olarak belirtiyoruz
+        // Yakalanan hatanın Next.js yönlendirme sinyali olup olmadığını kontrol et
+        if (error && typeof error.digest === 'string' && error.digest.startsWith('NEXT_REDIRECT')) {
+            throw error; // Yönlendirme sinyalini tekrar fırlat, Next.js'in işlemesine izin ver
+        }
+
+        // Eğer farklı bir tür hataysa, logla ve hata sayfasına yönlendir
+        console.error('[ETSY CALLBACK] Etsy token alımı sırasında GERÇEK kritik hata:', error); // Log mesajını netleştirdik
         const errorMessage = encodeURIComponent((error instanceof Error) ? error.message : 'Callback_Fetch_Critical_Error');
-        return redirect(`${dashboardErrorPath}?status=error&message=${errorMessage}`);
+        // dashboardErrorPath daha önce mutlak URL olarak oluşturulmuştu
+        return redirect(`${dashboardErrorPath}?status=error&message=${errorMessage}&source=callback_catch`); // Hata kaynağını belirtmek için query param eklendi
     }
 } 
