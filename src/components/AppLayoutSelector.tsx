@@ -4,11 +4,10 @@ import ProtectedLayout from "./ProtectedLayout";
 
 export default function AppLayoutSelector({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  // Eğer auth veya Etsy callback/initiate route'undaysa sadece children'ı döndür
+  // Eğer auth veya TÜM /api/ route'undaysa sadece children'ı döndür
   if (
     pathname.startsWith("/auth") ||
-    pathname.startsWith("/api/auth/callback/etsy") ||
-    pathname.startsWith("/api/etsy/auth/initiate")
+    pathname.startsWith("/api/")
   ) {
     return <>{children}</>;
   }
